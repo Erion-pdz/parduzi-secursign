@@ -1,0 +1,111 @@
+:root {
+    --primary: #3b82f6; /* Bleu pro */
+    --bg: #0f172a;      /* Bleu nuit très sombre */
+    --card: #1e293b;    /* Gris bleuté */
+    --text: #f1f5f9;
+    --border: #334155;
+}
+
+body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', sans-serif;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.container {
+    width: 100%;
+    max-width: 500px; /* Format tablette/mobile */
+}
+
+header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+    gap: 15px;
+}
+
+.logo {
+    width: 50px;
+    height: 50px;
+    background: var(--primary);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 20px;
+}
+
+h1 { margin: 0; font-size: 22px; }
+p { margin: 0; color: #94a3b8; font-size: 14px; }
+
+.card {
+    background: var(--card);
+    padding: 20px;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    margin-bottom: 20px;
+}
+
+h3 { margin-top: 0; color: var(--primary); font-size: 16px; text-transform: uppercase; letter-spacing: 1px; }
+
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+.input-group { margin-bottom: 15px; }
+
+label { display: block; margin-bottom: 5px; font-size: 13px; color: #cbd5e1; }
+
+input, textarea {
+    width: 100%;
+    background: #0f172a;
+    border: 1px solid var(--border);
+    color: white;
+    padding: 12px;
+    border-radius: 8px;
+    box-sizing: border-box;
+    font-size: 15px;
+}
+
+textarea { height: 80px; resize: vertical; }
+
+.signature-wrapper {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    height: 180px;
+    position: relative;
+}
+
+canvas { width: 100%; height: 100%; display: block; }
+
+.btn-clear {
+    background: transparent; border: 1px solid var(--border); color: #94a3b8;
+    padding: 5px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-top: 5px;
+}
+
+.btn-primary {
+    width: 100%;
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 16px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.btn-primary:hover { background: #2563eb; }
+.btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
+
+#statusMessage {
+    text-align: center; margin-top: 20px; padding: 15px; border-radius: 8px;
+}
+.success { background: #064e3b; color: #34d399; }
+.error { background: #450a0a; color: #f87171; }
+.hidden { display: none; }
