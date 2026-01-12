@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parduzi SecureSign</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <div class="logo">PZ</div>
+            <div>
+                <h1>Quitus Numérique</h1>
+                <p>Validation certifiée de fin de chantier</p>
+            </div>
+        </header>
+
+        <form id="quitusForm">
+            
+            <section class="card">
+                <h3>📋 Informations Chantier</h3>
+                <div class="grid">
+                    <div class="input-group">
+                        <label>N° de Bon</label>
+                        <input type="text" id="numeroBon" placeholder="Ex: 7894P" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Date</label>
+                        <input type="date" id="dateInter" required>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>Nom du Client / Locataire</label>
+                    <input type="text" id="clientName" placeholder="NOM Prénom" required>
+                </div>
+
+                <div class="input-group">
+                    <label>Adresse complète</label>
+                    <input type="text" id="address" placeholder="Bat A, Apt 12..." required>
+                </div>
+
+                <div class="input-group">
+                    <label>Objet des travaux</label>
+                    <input type="text" id="object" placeholder="Remplacement porte palière..." required>
+                </div>
+            </section>
+
+            <section class="card">
+                <h3>📝 Observations & Réserves</h3>
+                <textarea id="observations" placeholder="RAS, ou décrire les réserves ici..."></textarea>
+            </section>
+
+            <section class="card">
+                <h3>✍️ Signatures</h3>
+                
+                <label>Client / Locataire</label>
+                <div class="signature-wrapper">
+                    <canvas id="sigClient"></canvas>
+                </div>
+                <button type="button" class="btn-clear" onclick="clearPad('client')">Effacer</button>
+
+                <label style="margin-top: 20px;">Technicien Parduzi</label>
+                <div class="signature-wrapper">
+                    <canvas id="sigTech"></canvas>
+                </div>
+                <button type="button" class="btn-clear" onclick="clearPad('tech')">Effacer</button>
+            </section>
+
+            <div class="actions">
+                <button type="submit" id="submitBtn" class="btn-primary">
+                    <span id="btnText">🔒 Sceller & Envoyer le Quitus</span>
+                </button>
+            </div>
+        </form>
+
+        <div id="statusMessage" class="hidden"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
