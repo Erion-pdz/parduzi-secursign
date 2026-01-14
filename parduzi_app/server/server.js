@@ -4,90 +4,118 @@ const bodyParser = require('body-parser');
 const ExcelJS = require('exceljs');
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto'); // Pour la sécurité (Hash)
+const crypto = require('crypto');
 
 const app = express();
 const PORT = 3000;
 
-// Configuration
 app.use(cors());
-app.use(bodyParser.json({ limit: '50mb' })); // Augmenté pour les images HD
-app.use(express.static(path.join(__dirname, '../public'))); // Servir le frontend
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(express.static(path.join(__dirname, '../public')));
 
-// Chemins
-const TEMPLATE_PATH = path.join(__dirname, 'templates', 'template.xlsx');
 const OUTPUT_DIR = path.join(__dirname, 'output');
 const DATA_DIR = path.join(__dirname, 'data');
+const TEMPLATE_DIR = path.join(__dirname, 'templates');
 
-// Vérification des dossiers
-[OUTPUT_DIR, DATA_DIR].forEach(dir => {
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-});
+// --- C'EST ICI QUE LA MAGIE OPÈRE (CONFIGURATION) ---
+// Pour chaque bailleur, on définit le nom du fichier et les coordonnées des cellules
+const TEMPLATE_CONFIG = {
+    'parduzi': {
+        file: 'parduzi_standard.xlsx',
+        mapping: {
+            bon: 'C5', client: 'C7', adresse: 'C8', objet: 'C10', 
+            remarques: 'B15', gps: 'B31', hash: 'B32', date: 'B30'
+        },
+        sigClient: 'A35:C40', // Zone signature client
+        sigTech: 'E35:G40'    // Zone signature technicien
+    },
+    'hmp': {
+        file: 'hmp.xlsx',
+        mapping: {
+            // Chez HMP, les cases sont peut-être différentes (exemple)
+            bon: 'E2', client: 'B10', adresse: 'B12', objet: 'B15', 
+            remarques: 'A20', gps: 'A40', hash: 'A41', date: 'E4'
+        },
+        sigClient: 'B45:D50',
+        sigTech: 'F45:H50'
+    },
+    'erilia': {
+        file: 'erilia.xlsx',
+        mapping: {
+            bon: 'H1', client: 'C5', adresse: 'C6', objet: 'C8', 
+            remarques: 'B20', gps: 'B50', hash: 'B51', date: 'H2'
+        },
+        sigClient: 'A55:C60',
+        sigTech: 'E55:G60'
+    },
+    'famille_provence': {
+        file: 'famille_provence.xlsx',
+        mapping: {
+            bon: 'D4', client: 'B8', adresse: 'B9', objet: 'B11', 
+            remarques: 'B25', gps: 'B60', hash: 'B61', date: 'D5'
+        },
+        sigClient: 'B65:D70',
+        sigTech: 'F65:H70'
+    }
+};
 
-// --- ROUTE PRINCIPALE : GÉNÉRATION DU QUITUS ---
 app.post('/api/generate', async (req, res) => {
     try {
-        console.log("📥 Réception d'une demande de quitus...");
         const data = req.body;
         
-        // 1. CRÉATION DE LA PREUVE DE SÉCURITÉ (HASH SHA-256)
-        // C'est ce qui fait "Master 1" : on scelle numériquement les données
-        const rawString = `${data.numeroBon}-${data.clientName}-${data.timestamp}-${data.gps.lat}`;
+        // 1. Récupérer la config du bailleur choisi
+        const bailleurId = data.templateId; // ex: 'hmp'
+        const config = TEMPLATE_CONFIG[bailleurId];
+
+        if (!config) throw new Error("Bailleur inconnu ou template non configuré");
+
+        const templatePath = path.join(TEMPLATE_DIR, config.file);
+        if (!fs.existsSync(templatePath)) throw new Error(`Fichier Excel introuvable : ${config.file}`);
+
+        // 2. Hash de sécurité
+        const rawString = `${data.numeroBon}-${data.clientName}-${data.timestamp}`;
         const securityHash = crypto.createHash('sha256').update(rawString).digest('hex');
 
-        // 2. CHARGEMENT DU TEMPLATE EXCEL
+        // 3. Charger l'Excel
         const workbook = new ExcelJS.Workbook();
-        if (!fs.existsSync(TEMPLATE_PATH)) {
-            throw new Error("Le fichier template.xlsx est introuvable dans server/templates/");
-        }
-        await workbook.xlsx.readFile(TEMPLATE_PATH);
+        await workbook.xlsx.readFile(templatePath);
         const worksheet = workbook.worksheets[0];
 
-        // 3. REMPLISSAGE DES DONNÉES TEXTE
-        // Note: Dans ton Excel, tu devras repérer les cellules (ex: B5, C10...)
-        // Adapte les cellules ci-dessous selon ton vrai fichier Excel !
-        worksheet.getCell('C5').value = data.numeroBon;        // N° Bon
-        worksheet.getCell('C7').value = data.clientName;       // Nom Client
-        worksheet.getCell('C8').value = data.address;          // Adresse
-        worksheet.getCell('C10').value = data.object;          // Objet travaux
-        worksheet.getCell('B15').value = data.observations;    // Remarques
+        // 4. Remplissage DYNAMIQUE grâce au mapping
+        const map = config.mapping;
+        
+        worksheet.getCell(map.bon).value = data.numeroBon;
+        worksheet.getCell(map.client).value = data.clientName;
+        worksheet.getCell(map.adresse).value = data.address;
+        worksheet.getCell(map.objet).value = data.object;
+        worksheet.getCell(map.remarques).value = data.observations;
+        worksheet.getCell(map.date).value = data.timestamp;
+        
+        // Métadonnées techniques
+        worksheet.getCell(map.gps).value = `GPS: ${data.gps.lat}, ${data.gps.lng}`;
+        worksheet.getCell(map.hash).value = `ID: ${securityHash}`;
 
-        // Insertion des métadonnées techniques (Preuves)
-        worksheet.getCell('B30').value = `Horodatage : ${data.timestamp}`;
-        worksheet.getCell('B31').value = `Position GPS : ${data.gps.lat}, ${data.gps.lng}`;
-        worksheet.getCell('B32').value = `ID Sécurité (Hash) : ${securityHash}`;
-
-        // 4. INSERTION DES SIGNATURES (IMAGES)
-        const addImageToSheet = (base64Data, range) => {
-            if (!base64Data) return;
-            const imageId = workbook.addImage({
-                base64: base64Data,
-                extension: 'png',
-            });
-            worksheet.addImage(imageId, range); // ex: 'A35:D40'
+        // 5. Signatures (positions dynamiques aussi)
+        const addImage = (base64, range) => {
+            if (!base64) return;
+            const imgId = workbook.addImage({ base64: base64, extension: 'png' });
+            worksheet.addImage(imgId, range);
         };
 
-        addImageToSheet(data.signatureClient, 'A35:C40'); // Zone Signature Client
-        addImageToSheet(data.signatureTech, 'E35:G40');   // Zone Signature Parduzi
+        addImage(data.signatureClient, config.sigClient);
+        addImage(data.signatureTech, config.sigTech);
 
-        // 5. SAUVEGARDE
-        const filename = `Quitus_${data.numeroBon}_${Date.now()}.xlsx`;
-        const filePath = path.join(OUTPUT_DIR, filename);
-        
-        // Sauvegarde aussi le JSON brut pour l'audit
-        fs.writeFileSync(path.join(DATA_DIR, filename.replace('.xlsx', '.json')), JSON.stringify({...data, securityHash}, null, 2));
-        
-        await workbook.xlsx.writeFile(filePath);
-        console.log(`✅ Fichier généré : ${filename}`);
+        // 6. Sauvegarde
+        const filename = `Quitus_${bailleurId.toUpperCase()}_${data.numeroBon}.xlsx`;
+        await workbook.xlsx.writeFile(path.join(OUTPUT_DIR, filename));
 
         res.json({ success: true, filename: filename, hash: securityHash });
 
     } catch (error) {
-        console.error("❌ Erreur:", error);
+        console.error(error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`🚀 Serveur Parduzi lancé sur http://localhost:${PORT}`);
-});
+// ... (Le reste du code server.js pour le port listen reste pareil)
+app.listen(PORT, () => console.log(`Serveur prêt sur http://localhost:${PORT}`));
