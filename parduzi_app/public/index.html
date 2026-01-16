@@ -17,58 +17,85 @@
                 <p>Validation certifiée de fin de chantier</p>
             </div>
         </header>
-        <section class="card" style="border-left: 5px solid #3b82f6;">
-    <h3>🏢 Choix du Bailleur</h3>
-    <div class="input-group">
-        <label>Modèle de Quitus à utiliser</label>
-        <select id="templateSelector" style="width: 100%; padding: 12px; border-radius: 8px; background: #0f172a; color: white; border: 1px solid #334155;">
-            <option value="parduzi">Parduzi Construction (Standard)</option>
-            <option value="hmp">HMP (Habitat Marseille Provence)</option>
-            <option value="erilia">Erilia</option>
-            <option value="famille_provence">Famille & Provence</option>
-        </select>
-    </div>
-    </section>
+
         <form id="quitusForm">
             
-            <section class="card">
-                <h3>📋 Informations Chantier</h3>
-                <div class="grid">
-                    <div class="input-group">
-                        <label>N° de Bon</label>
-                        <input type="text" id="numeroBon" placeholder="Ex: 7894P" required>
-                    </div>
-                    <div class="input-group">
-                        <label>Date</label>
-                        <input type="date" id="dateInter" required>
-                    </div>
+            <section class="card" style="border-left: 5px solid #3b82f6;">
+                <h3>🏢 Informations Dossier</h3>
+                
+                <div class="input-group">
+                    <label>Bailleur / Client Principal</label>
+                    <select id="bailleurSelect" style="background: #1e293b; color: white; padding: 12px; border-radius: 8px; border: 1px solid #334155; width: 100%;">
+                        <option value="HMP">HMP (Habitat Marseille Provence)</option>
+                        <option value="ERILIA">ERILIA</option>
+                        <option value="13 HABITAT">13 HABITAT</option>
+                        <option value="CDC HABITAT">CDC HABITAT</option>
+                        <option value="LOGIREM">LOGIREM</option>
+                        <option value="UNICIL">UNICIL</option>
+                        <option value="PARDUZI STANDARD">Parduzi (Autre)</option>
+                    </select>
                 </div>
 
+                <div class="grid">
+                    <div class="input-group">
+                        <label>Numéro Interne (Obligatoire)</label>
+                        <input type="text" id="internalNum" placeholder="Ex: INT-2025-001" required>
+                    </div>
+
+                    <div class="input-group">
+                        <label>N° de Bon (Optionnel)</label>
+                        <input type="text" id="numeroBon" placeholder="Laisser vide si absent">
+                    </div>
+                </div>
+            </section>
+
+            <section class="card">
+                <h3>👤 Locataire & Lieu</h3>
+                
                 <div class="input-group">
-                    <label>Nom du Client / Locataire</label>
+                    <label>Nom du Locataire / Client</label>
                     <input type="text" id="clientName" placeholder="NOM Prénom" required>
                 </div>
 
                 <div class="input-group">
-                    <label>Adresse complète</label>
-                    <input type="text" id="address" placeholder="Bat A, Apt 12..." required>
+                    <label>Email du Client (Pour copie)</label>
+                    <input type="email" id="clientEmail" placeholder="client@exemple.com">
+                </div>
+
+                <div class="input-group">
+                    <label>Cité / Adresse</label>
+                    <input type="text" id="address" placeholder="Ex: Cité Rabelais" required>
+                </div>
+
+                <div class="grid-3">
+                    <div class="input-group">
+                        <label>Bâtiment</label>
+                        <input type="text" id="batiment" placeholder="Ex: A">
+                    </div>
+                    <div class="input-group">
+                        <label>Logement</label>
+                        <input type="text" id="logement" placeholder="Ex: 12">
+                    </div>
+                    <div class="input-group">
+                        <label>Étage</label>
+                        <input type="text" id="etage" placeholder="Ex: 2">
+                    </div>
                 </div>
 
                 <div class="input-group">
                     <label>Objet des travaux</label>
-                    <input type="text" id="object" placeholder="Remplacement porte palière..." required>
+                    <input type="text" id="object" placeholder="Remplacement porte..." required>
                 </div>
             </section>
 
             <section class="card">
-                <h3>📝 Observations & Réserves</h3>
-                <textarea id="observations" placeholder="RAS, ou décrire les réserves ici..."></textarea>
+                <h3>📝 Observations</h3>
+                <textarea id="observations" placeholder="RAS ou réserves..."></textarea>
             </section>
 
             <section class="card">
                 <h3>✍️ Signatures</h3>
-                
-                <label>Client / Locataire</label>
+                <label>Locataire / Client</label>
                 <div class="signature-wrapper">
                     <canvas id="sigClient"></canvas>
                 </div>
@@ -83,7 +110,7 @@
 
             <div class="actions">
                 <button type="submit" id="submitBtn" class="btn-primary">
-                    <span id="btnText">🔒 Sceller & Envoyer le Quitus</span>
+                    <span id="btnText">📨 Envoyer le Quitus</span>
                 </button>
             </div>
         </form>

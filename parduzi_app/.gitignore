@@ -1,0 +1,14 @@
+# Dépendances (Ne jamais envoyer ça)
+node_modules/
+
+# Dossier de sortie (Tes quitus générés ne doivent pas être dans le code source)
+server/output/
+output/
+
+# Fichiers systèmes et temporaires
+.DS_Store
+Thumbs.db
+~$*.xlsx
+
+# Variables d'environnement (Sécurité)
+.env

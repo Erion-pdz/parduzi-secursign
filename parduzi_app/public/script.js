@@ -1,8 +1,7 @@
-// --- INITIALISATION DES PADS DE SIGNATURE ---
+// --- INITIALISATION SIGNATURES ---
 const canvasClient = document.getElementById('sigClient');
 const canvasTech = document.getElementById('sigTech');
 
-// Fonction pour redimensionner les canvas (Indispensable pour la netteté sur mobile)
 function resizeCanvas(canvas) {
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
     canvas.width = canvas.offsetWidth * ratio;
@@ -10,7 +9,6 @@ function resizeCanvas(canvas) {
     canvas.getContext("2d").scale(ratio, ratio);
 }
 
-// On redimensionne au chargement et si on tourne l'écran
 window.addEventListener("resize", () => {
     resizeCanvas(canvasClient);
     resizeCanvas(canvasTech);
@@ -26,7 +24,7 @@ function clearPad(who) {
     else padTech.clear();
 }
 
-// --- FONCTION GÉOLOCALISATION ---
+// --- GPS ---
 function getGPS() {
     return new Promise((resolve) => {
         if (!navigator.geolocation) {
@@ -34,23 +32,19 @@ function getGPS() {
         } else {
             navigator.geolocation.getCurrentPosition(
                 (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-                (err) => {
-                    console.warn("GPS non disponible:", err);
-                    resolve({ lat: 0, lng: 0 }); // On continue même sans GPS
-                },
+                (err) => { resolve({ lat: 0, lng: 0 }); },
                 { enableHighAccuracy: true, timeout: 5000 }
             );
         }
     });
 }
 
-// --- SOUMISSION DU FORMULAIRE ---
+// --- ENVOI ---
 document.getElementById('quitusForm').addEventListener('submit', async (e) => {
-    e.preventDefault(); // Empêche le rechargement de la page
+    e.preventDefault();
     
-    // Validation basique
     if (padClient.isEmpty() || padTech.isEmpty()) {
-        alert("⚠️ Les deux signatures sont obligatoires pour valider.");
+        alert("⚠️ Signatures manquantes !");
         return;
     }
 
@@ -58,37 +52,39 @@ document.getElementById('quitusForm').addEventListener('submit', async (e) => {
     const btnText = document.getElementById('btnText');
     const statusDiv = document.getElementById('statusMessage');
 
-    // Feedback visuel (Chargement)
     btn.disabled = true;
-    btnText.textContent = "🛰️ Acquisition GPS & Sécurisation...";
+    btnText.textContent = "⏳ Envoi en cours...";
     statusDiv.classList.add('hidden');
 
     try {
-        // 1. Récupération GPS
         const gpsCoords = await getGPS();
 
-        // 2. Construction de l'objet à envoyer
         const payload = {
-            // C'est ici qu'on récupère le choix du bailleur fait dans ton HTML
-            templateId: document.getElementById('templateSelector').value,
-
+            // On récupère le bailleur sélectionné
+            selectedBailleur: document.getElementById('bailleurSelect').value,
+            
+            // On récupère le numéro interne
+            internalNum: document.getElementById('internalNum').value,
+            
+            // Le numéro de bon (peut être vide)
             numeroBon: document.getElementById('numeroBon').value,
-            dateInter: document.getElementById('dateInter').value,
+            
             clientName: document.getElementById('clientName').value,
+            clientEmail: document.getElementById('clientEmail').value,
+            
             address: document.getElementById('address').value,
+            batiment: document.getElementById('batiment').value,
+            logement: document.getElementById('logement').value,
+            etage: document.getElementById('etage').value,
+
             object: document.getElementById('object').value,
             observations: document.getElementById('observations').value,
             
-            // Les images en base64
             signatureClient: padClient.toDataURL(),
             signatureTech: padTech.toDataURL(),
-            
-            // Les métadonnées de preuve
-            gps: gpsCoords,
-            timestamp: new Date().toLocaleString('fr-FR')
+            gps: gpsCoords
         };
 
-        // 3. Envoi au serveur Node.js
         const response = await fetch('/api/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -99,12 +95,7 @@ document.getElementById('quitusForm').addEventListener('submit', async (e) => {
 
         if (result.success) {
             statusDiv.className = "success";
-            statusDiv.innerHTML = `
-                ✅ <strong>Quitus généré avec succès !</strong><br>
-                Fichier : ${result.filename}<br>
-                <small>Preuve Hash SHA-256 : ${result.hash.substring(0, 15)}...</small>
-            `;
-            // Reset du formulaire
+            statusDiv.innerHTML = `✅ <strong>Envoyé !</strong><br>Email parti à contact@parduzi.fr`;
             padClient.clear();
             padTech.clear();
             document.getElementById('quitusForm').reset();
@@ -114,10 +105,10 @@ document.getElementById('quitusForm').addEventListener('submit', async (e) => {
 
     } catch (error) {
         statusDiv.className = "error";
-        statusDiv.innerHTML = `❌ Erreur : ${error.message}`;
+        statusDiv.textContent = `❌ Erreur : ${error.message}`;
     } finally {
         btn.disabled = false;
-        btnText.textContent = "🔒 Sceller & Envoyer le Quitus";
+        btnText.textContent = "📨 Envoyer le Quitus";
         statusDiv.classList.remove('hidden');
     }
 });
