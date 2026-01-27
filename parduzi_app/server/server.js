@@ -54,10 +54,10 @@ const TEMPLATE_CONFIG = {
     'parduzi': {
         file: 'parduzi_standard.xlsx', 
         mapping: {
-            interne: 'D1',     // N° Interne (En haut à droite)
+            interne: 'G1',     // N° Interne (En haut à droite)
             
             // -- DEBUT DU BLOC DÉCALÉ --
-            nom_bailleur: 'B12', // Le choix de la liste déroulante
+            nom_bailleur: 'B11', // Le choix de la liste déroulante
 
             cite: 'B13',       
             date: 'B15',       
