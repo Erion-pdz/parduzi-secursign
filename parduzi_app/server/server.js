@@ -1,6 +1,6 @@
 /**
- * PARDUZI SECURE SIGN - SERVEUR COMPLET
- * Version : Finale avec Bailleur, N° Interne et Email Auto
+ * PARDUZI SECURE SIGN - SERVEUR FINAL
+ * Version : Avec Logo (A1:C5) + Gros Numéro Interne
  */
 
 const express = require('express');
@@ -16,20 +16,16 @@ const nodemailer = require('nodemailer');
 const app = express();
 const PORT = 3000;
 
-// ============================================
-// 1. CONFIGURATION EMAIL (GMAIL)
-// ============================================
+// --- EMAIL ---
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: 'eriondu13@gmail.com',  // ⚠️ METS TON EMAIL
-        pass: 'xpwn oarz yjah iqdw'       // ⚠️ METS TON MDP APP (16 lettres)
+        user: 'parduzisecursign@gmail.com',  
+        pass: 'jpki gxpq yahx dbeo'   
     }
 });
 
-// ============================================
-// 2. CONFIGURATION BASE DE DONNÉES
-// ============================================
+// --- BDD ---
 const pool = new Pool({
     user: 'postgres',
     host: 'localhost',
@@ -43,52 +39,36 @@ app.use(bodyParser.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, '../public')));
 
 const OUTPUT_DIR = path.join(__dirname, 'output');
-const TEMPLATE_DIR = path.join(__dirname, 'templates');
+const TEMPLATE_DIR = path.join(__dirname, 'templates'); // L'image doit être ici !
 if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR);
 
-// ============================================
-// 3. MAPPING EXCEL (Les coordonnées)
-// ============================================
+// --- MAPPING EXCEL (HMP 2026) ---
 const TEMPLATE_CONFIG = {
-    // Configuration principale (utilise parduzi_standard.xlsx)
     'parduzi': {
-        file: 'parduzi_standard.xlsx', 
+        file: 'Quitus VIDE HMP 2026.xlsx', 
         mapping: {
-            interne: 'G1',     // N° Interne (En haut à droite)
-            
-            // -- DEBUT DU BLOC DÉCALÉ --
-            nom_bailleur: 'B11', // Le choix de la liste déroulante
-
-            cite: 'B13',       
-            date: 'B15',       
-            objet: 'B17',      
-            client: 'B19',     
-            
-            batiment: 'B21',   
-            logement: 'B22',   
-            etage: 'B23',      
-            
-            bon: 'C27',        // Bon client
-            
-            remarques: 'D21',  // Zone de texte
-            
-            gps: 'B41',        
-            hash: 'B42'        
-        },
-        sigClient: 'A33:C38',
-        sigTech: 'E33:G38'
+            interne: 'H2',      
+            nom_bailleur: 'B7', 
+            bon: 'B8',          
+            cite: 'B9',         
+            client: 'B10',      
+            date: 'H7',         
+            batiment: 'H8',     
+            logement: 'H9',     
+            etage: 'H10',       
+            remarques_debut: 'A14', 
+            remarques_fin: 'H18',   
+            sigClient: 'A21:C25', 
+            sigTech: 'F21:H25',
+            hash: 'B41' 
+        }
     }
 };
 
-// ============================================
-// 4. ROUTE GÉNÉRATION
-// ============================================
 app.post('/api/generate', async (req, res) => {
     let clientDb; 
     try {
         const data = req.body;
-        
-        // Gestion Bon vide -> "SansBon"
         const numBonFinal = data.numeroBon ? data.numeroBon : "SansBon";
 
         console.log(`📥 Reçu : ${data.selectedBailleur} | Interne: ${data.internalNum}`);
@@ -96,102 +76,131 @@ app.post('/api/generate', async (req, res) => {
         const now = new Date();
         const dateJour = now.toLocaleDateString('fr-FR'); 
 
-        // On utilise toujours le fichier standard
         const config = TEMPLATE_CONFIG['parduzi'];
         const templatePath = path.join(TEMPLATE_DIR, config.file);
         
-        if (!fs.existsSync(templatePath)) throw new Error(`Template introuvable`);
+        // Chemin vers le logo
+        const logoPath = path.join(TEMPLATE_DIR, 'logo.png');
+        
+        if (!fs.existsSync(templatePath)) throw new Error(`Template introuvable: ${config.file}`);
 
-        // Hash de sécurité
         const rawString = `${data.internalNum}-${dateJour}-${data.clientName}`;
         const securityHash = crypto.createHash('sha256').update(rawString).digest('hex');
 
-        // --- Remplissage Excel ---
+        // --- EXCEL ---
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.readFile(templatePath);
         const ws = workbook.worksheets[0];
         const map = config.mapping;
 
-        // Ecriture des champs
-        if (map.interne) ws.getCell(map.interne).value = data.internalNum;
-        if (map.nom_bailleur) ws.getCell(map.nom_bailleur).value = data.selectedBailleur;
-        
-        if (map.cite) ws.getCell(map.cite).value = data.address;
-        if (map.date) ws.getCell(map.date).value = dateJour;
-        if (map.objet) ws.getCell(map.objet).value = data.object;
-        if (map.client) ws.getCell(map.client).value = data.clientName;
-        
-        if (map.batiment) ws.getCell(map.batiment).value = data.batiment; 
-        if (map.logement) ws.getCell(map.logement).value = data.logement; 
-        if (map.etage) ws.getCell(map.etage).value = data.etage; 
-        
-        if (map.bon) ws.getCell(map.bon).value = data.numeroBon;
-
-        // Remarques (Fusion D21->F26 à cause du décalage)
-        if (map.remarques && data.observations) {
-            const range = `${map.remarques}:F26`; 
-            try { ws.mergeCells(range); } catch (e) {}
-            const cell = ws.getCell(map.remarques);
-            cell.value = "OBSERVATION :\n" + data.observations;
-            cell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
-            cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+        // --- 1. AJOUT DU LOGO (A1 à C5) ---
+        if (fs.existsSync(logoPath)) {
+            const logoBuffer = fs.readFileSync(logoPath);
+            const logoId = workbook.addImage({
+                buffer: logoBuffer,
+                extension: 'png',
+            });
+            // On place l'image de A1 à C5
+            ws.addImage(logoId, 'A1:C5');
+        } else {
+            console.warn("⚠️ Attention : logo.png introuvable dans le dossier templates");
         }
 
-        // Preuves
-        if (map.gps) ws.getCell(map.gps).value = `GPS: ${data.gps.lat}, ${data.gps.lng}`;
+        const writeCell = (coord, value) => {
+            if (!coord) return;
+            const cell = ws.getCell(coord);
+            cell.value = value;
+            cell.alignment = { horizontal: 'left', vertical: 'middle' }; 
+        };
+
+        // --- 2. NUMÉRO INTERNE (GROS) ---
+        if (map.interne) {
+            const cell = ws.getCell(map.interne);
+            cell.value = data.internalNum.toUpperCase();
+            // Taille passée à 20 (Très grand)
+            cell.font = { bold: true, size: 20, name: 'Arial' };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        }
+        
+        // Champs simples
+        writeCell(map.nom_bailleur, data.selectedBailleur);
+        writeCell(map.cite, data.address.toUpperCase());
+        writeCell(map.date, dateJour);
+        writeCell(map.client, data.clientName);
+        writeCell(map.batiment, data.batiment);
+        writeCell(map.logement, data.logement);
+        writeCell(map.etage, data.etage);
+        writeCell(map.bon, data.numeroBon);
+
+        // Détails
+        if (map.remarques_debut && map.remarques_fin) {
+            try { ws.mergeCells(`${map.remarques_debut}:${map.remarques_fin}`); } catch (e) {}
+            const cell = ws.getCell(map.remarques_debut);
+            cell.value = data.observations; 
+            cell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
+        }
+
+        // Preuve Hash
         if (map.hash) ws.getCell(map.hash).value = `ID: ${securityHash.substring(0, 15)}...`;
 
         // Signatures
         const addSig = (base64, range) => {
-            if (!base64) return;
+            if (!base64 || !range) return;
             const imgId = workbook.addImage({ base64: base64, extension: 'png' });
             ws.addImage(imgId, range);
         };
-        addSig(data.signatureClient, config.sigClient);
-        addSig(data.signatureTech, config.sigTech);
+        addSig(data.signatureClient, map.sigClient);
+        addSig(data.signatureTech, map.sigTech);
 
-        // Sauvegarde
         const filename = `Quitus_${data.selectedBailleur}_${data.internalNum}_${Date.now()}.xlsx`;
         const filePath = path.join(OUTPUT_DIR, filename);
         await workbook.xlsx.writeFile(filePath);
 
-        // --- Sauvegarde BDD ---
+        // --- BDD ---
         clientDb = await pool.connect();
-        const query = `
-            INSERT INTO interventions 
-            (numero_bon, bailleur, client_nom, adresse, batiment, logement, etage, objet, observations, gps_lat, gps_lng, chemin_excel, hash_securite)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-            RETURNING id
-        `;
-        const values = [
-            numBonFinal, 
-            data.selectedBailleur, // On stocke le nom du bailleur ici
-            data.clientName, data.address,
-            data.batiment, data.logement, data.etage,
-            data.object + ` (Interne: ${data.internalNum})`, // On ajoute le n° interne dans l'objet BDD
-            data.observations, data.gps.lat, data.gps.lng, 
-            filePath, securityHash
-        ];
         
-        const resultDb = await clientDb.query(query, values);
-        console.log(`✅ Sauvegardé BDD ID: ${resultDb.rows[0].id}`);
+        // Requête SANS la colonne 'objet' (Puisque supprimée)
+        // Si ta BDD plante, c'est qu'il faut enlever la colonne 'objet' dans PostgreSQL ou remettre une valeur vide
+        try {
+            const query = `
+                INSERT INTO interventions 
+                (numero_bon, bailleur, client_nom, adresse, batiment, logement, etage, observations, gps_lat, gps_lng, chemin_excel, hash_securite)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            `;
+            const values = [
+                numBonFinal, data.selectedBailleur, data.clientName, data.address.toUpperCase(),
+                data.batiment, data.logement, data.etage,
+                data.observations, data.gps.lat, data.gps.lng, 
+                filePath, securityHash
+            ];
+            await clientDb.query(query, values);
+        } catch (e) {
+            // Fallback si la BDD a encore la colonne objet obligatoire
+            const querySecours = `
+                INSERT INTO interventions 
+                (numero_bon, bailleur, client_nom, adresse, batiment, logement, etage, objet, observations, gps_lat, gps_lng, chemin_excel, hash_securite)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            `;
+            const valuesSecours = [
+                numBonFinal, data.selectedBailleur, data.clientName, data.address.toUpperCase(),
+                data.batiment, data.logement, data.etage,
+                "Détails", 
+                data.observations, data.gps.lat, data.gps.lng, 
+                filePath, securityHash
+            ];
+            await clientDb.query(querySecours, valuesSecours);
+        }
 
-        // --- Envoi Email ---
-        const destinatairePrincipal = 'contact@parduzi.fr';
-        const destinataireCopie = data.clientEmail || '';
-
+        // --- Email ---
         const mailOptions = {
             from: '"Parduzi App" <ne-pas-repondre@parduzi.fr>',
-            to: destinatairePrincipal,
-            cc: destinataireCopie,
+            to: 'contact@parduzi.fr',
             subject: `[Quitus] ${data.selectedBailleur} - ${data.internalNum}`,
-            text: `Nouvelle intervention validée.\n\nBailleur : ${data.selectedBailleur}\nN° Interne : ${data.internalNum}\nBon Client : ${numBonFinal}\nClient : ${data.clientName}\nAdresse : ${data.address}\n\nLe document signé est en pièce jointe.`,
+            text: `Nouvelle intervention validée.\n\nBailleur : ${data.selectedBailleur}\nN° Interne : ${data.internalNum}\nClient : ${data.clientName}\nAdresse : ${data.address}\n\nDocument joint.`,
             attachments: [{ filename: filename, path: filePath }]
         };
 
         await transporter.sendMail(mailOptions);
-        console.log("📧 Email envoyé !");
-
         res.json({ success: true, filename: filename });
 
     } catch (error) {
@@ -202,4 +211,4 @@ app.post('/api/generate', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => console.log(`🚀 Serveur Parduzi prêt sur http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Serveur Parduzi pret sur http://localhost:${PORT}`));

@@ -60,24 +60,19 @@ document.getElementById('quitusForm').addEventListener('submit', async (e) => {
         const gpsCoords = await getGPS();
 
         const payload = {
-            // On récupère le bailleur sélectionné
             selectedBailleur: document.getElementById('bailleurSelect').value,
-            
-            // On récupère le numéro interne
             internalNum: document.getElementById('internalNum').value,
-            
-            // Le numéro de bon (peut être vide)
             numeroBon: document.getElementById('numeroBon').value,
             
             clientName: document.getElementById('clientName').value,
-            clientEmail: document.getElementById('clientEmail').value,
+            // J'ai supprimé clientEmail car il n'est plus dans ton HTML
             
             address: document.getElementById('address').value,
             batiment: document.getElementById('batiment').value,
             logement: document.getElementById('logement').value,
             etage: document.getElementById('etage').value,
 
-            object: document.getElementById('object').value,
+            // J'ai supprimé 'object' car tu l'as enlevé du HTML
             observations: document.getElementById('observations').value,
             
             signatureClient: padClient.toDataURL(),
