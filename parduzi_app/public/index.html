@@ -84,18 +84,42 @@
 
             <section class="card">
                 <h3>✍️ Signatures</h3>
-                <label>Locataire / Client</label>
-                <div class="signature-wrapper">
-                    <canvas id="sigClient"></canvas>
-                </div>
-                <button type="button" class="btn-clear" onclick="clearPad('client')">Effacer</button>
+                
+                <div class="signature-buttons">
+                    <div class="sig-button-wrapper">
+                        <label>Locataire / Client</label>
+                        <button type="button" class="btn-signature" id="btnSignClient" onclick="openSignatureModal('client')">
+                            <span id="statusClient">✍️ Cliquer pour signer</span>
+                        </button>
+                    </div>
 
-                <label style="margin-top: 20px;">Technicien</label>
-                <div class="signature-wrapper">
-                    <canvas id="sigTech"></canvas>
+                    <div class="sig-button-wrapper">
+                        <label>Technicien</label>
+                        <button type="button" class="btn-signature" id="btnSignTech" onclick="openSignatureModal('tech')">
+                            <span id="statusTech">✍️ Cliquer pour signer</span>
+                        </button>
+                    </div>
                 </div>
-                <button type="button" class="btn-clear" onclick="clearPad('tech')">Effacer</button>
             </section>
+
+            <!-- Modal Signature -->
+            <div id="signatureModal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 id="modalTitle">Signature</h2>
+                        <button type="button" class="btn-close" onclick="closeSignatureModal()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="signature-wrapper-modal">
+                            <canvas id="modalCanvas"></canvas>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn-secondary" onclick="clearModalPad()">🗑️ Effacer</button>
+                        <button type="button" class="btn-primary-modal" onclick="saveSignature()">✔️ Valider</button>
+                    </div>
+                </div>
+            </div>
 
             <div class="actions">
                 <button type="submit" id="submitBtn" class="btn-primary">
@@ -106,6 +130,10 @@
 
         <div id="statusMessage" class="hidden"></div>
     </div>
+
+    <!-- Canvas cachés pour stocker les signatures -->
+    <canvas id="sigClient" style="display:none;"></canvas>
+    <canvas id="sigTech" style="display:none;"></canvas>
 
     <script src="script.js"></script>
 </body>

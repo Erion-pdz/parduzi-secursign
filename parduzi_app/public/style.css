@@ -37,8 +37,8 @@ header {
     font-weight: bold; font-size: 20px;
 }
 
-h1 { margin: 0; font-size: 22px; }
-p { margin: 0; color: #f0f9ff; font-size: 14px; }
+h1 { margin: 0; font-size: 22px; color: #000000; font-weight: bold; }
+p { margin: 0; color: #1a1a1a; font-size: 14px; font-weight: 500; }
 
 .card {
     background: var(--card);
@@ -48,30 +48,31 @@ p { margin: 0; color: #f0f9ff; font-size: 14px; }
     margin-bottom: 20px;
 }
 
-h3 { margin-top: 0; color: var(--primary); font-size: 16px; text-transform: uppercase; letter-spacing: 1px; }
+h3 { margin-top: 0; color: #ffffff; font-size: 16px; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; }
 
 /* Grilles pour aligner les champs */
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
 .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 15px; }
 
 .input-group { margin-bottom: 15px; }
-label { display: block; margin-bottom: 5px; font-size: 13px; color: #bae6fd; }
+label { display: block; margin-bottom: 5px; font-size: 13px; color: #ffffff; font-weight: 600; }
 
 input, textarea, select {
     width: 100%;
-    background: #082f49;
+    background: #ffffff;
     border: 1px solid var(--border);
-    color: #ffffff;
+    color: #000000;
     padding: 12px;
     border-radius: 8px;
     box-sizing: border-box;
     font-size: 15px;
+    font-weight: 500;
 }
 
 /* Style perso pour la liste déroulante */
 select {
     appearance: none;
-    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23FFFFFF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23000000%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
     background-repeat: no-repeat;
     background-position: right 12px top 50%;
     background-size: 10px auto;
@@ -79,19 +80,157 @@ select {
 
 textarea { height: 80px; resize: vertical; }
 
-.signature-wrapper {
-    background: white;
-    border-radius: 8px;
-    overflow: hidden;
-    height: 180px;
+/* Boutons de signature */
+.signature-buttons { display: flex; flex-direction: column; gap: 15px; }
+.sig-button-wrapper { display: flex; flex-direction: column; }
+
+.btn-signature {
+    background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%);
+    color: white;
+    border: 2px solid #0369a1;
+    padding: 20px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.btn-signature:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+}
+
+.btn-signature.signed {
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+    border-color: #047857;
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-content {
     position: relative;
+    background-color: #0c4a6e;
+    margin: 5% auto;
+    padding: 0;
+    border: 2px solid #0369a1;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 600px;
+    animation: slideIn 0.3s;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+
+@keyframes slideIn {
+    from { transform: translateY(-50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    border-bottom: 2px solid #0369a1;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: #ffffff;
+    font-size: 20px;
+}
+
+.btn-close {
+    background: transparent;
+    border: none;
+    color: #bae6fd;
+    font-size: 32px;
+    cursor: pointer;
+    transition: color 0.2s;
+    line-height: 1;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+}
+
+.btn-close:hover {
+    color: #ffffff;
+}
+
+.modal-body {
+    padding: 25px;
+}
+
+.signature-wrapper-modal {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    height: 300px;
+    position: relative;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
 
 canvas { width: 100%; height: 100%; display: block; }
 
-.btn-clear {
-    background: transparent; border: 1px solid var(--border); color: #0e7490;
-    padding: 5px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-top: 5px;
+.modal-footer {
+    display: flex;
+    gap: 15px;
+    padding: 20px 25px;
+    border-top: 2px solid #0369a1;
+}
+
+.btn-secondary {
+    flex: 1;
+    background: transparent;
+    border: 2px solid #0369a1;
+    color: #bae6fd;
+    padding: 14px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-secondary:hover {
+    background: #082f49;
+    color: #ffffff;
+}
+
+.btn-primary-modal {
+    flex: 2;
+    background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%);
+    color: white;
+    border: none;
+    padding: 14px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+}
+
+.btn-primary-modal:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.3);
 }
 
 .btn-primary {
