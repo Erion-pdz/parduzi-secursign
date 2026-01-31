@@ -1,10 +1,10 @@
-/* DESIGN MODERNE DARK MODE - SPÉCIAL MASTER 1 */
+/* DESIGN MODERNE PROFESSIONNEL - SPÉCIAL MASTER 1 */
 :root {
-    --primary: #3b82f6; 
-    --bg: #0f172a;      
-    --card: #1e293b;    
-    --text: #f1f5f9;
-    --border: #334155;
+    --primary: #07495a; 
+    --bg: #0a91a9;      
+    --card: #0c4a6e;    
+    --text: #ffffff;
+    --border: #036aa17c;
 }
 
 body {
@@ -38,7 +38,7 @@ header {
 }
 
 h1 { margin: 0; font-size: 22px; }
-p { margin: 0; color: #94a3b8; font-size: 14px; }
+p { margin: 0; color: #f0f9ff; font-size: 14px; }
 
 .card {
     background: var(--card);
@@ -55,13 +55,13 @@ h3 { margin-top: 0; color: var(--primary); font-size: 16px; text-transform: uppe
 .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 15px; }
 
 .input-group { margin-bottom: 15px; }
-label { display: block; margin-bottom: 5px; font-size: 13px; color: #cbd5e1; }
+label { display: block; margin-bottom: 5px; font-size: 13px; color: #bae6fd; }
 
 input, textarea, select {
     width: 100%;
-    background: #0f172a;
+    background: #082f49;
     border: 1px solid var(--border);
-    color: white;
+    color: #ffffff;
     padding: 12px;
     border-radius: 8px;
     box-sizing: border-box;
@@ -90,7 +90,7 @@ textarea { height: 80px; resize: vertical; }
 canvas { width: 100%; height: 100%; display: block; }
 
 .btn-clear {
-    background: transparent; border: 1px solid var(--border); color: #94a3b8;
+    background: transparent; border: 1px solid var(--border); color: #0e7490;
     padding: 5px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-top: 5px;
 }
 
@@ -107,12 +107,12 @@ canvas { width: 100%; height: 100%; display: block; }
     transition: background 0.3s;
 }
 
-.btn-primary:hover { background: #2563eb; }
+.btn-primary:hover { background: #0e7490; }
 .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
 
 #statusMessage {
     text-align: center; margin-top: 20px; padding: 15px; border-radius: 8px;
 }
-.success { background: #064e3b; color: #34d399; }
-.error { background: #450a0a; color: #f87171; }
+.success { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+.error { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
 .hidden { display: none; }
