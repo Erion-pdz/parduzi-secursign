@@ -1,0 +1,44 @@
+# Gradle files
+.gradle/
+build/
+gradle-wrapper.jar
+gradle-wrapper.properties
+
+# Android Studio
+.idea/
+*.iml
+*.apk
+*.ap_
+*.dex
+*.class
+*.jar
+*.war
+*.ear
+*.aar
+*.zip
+*.tar.gz
+*.rar
+
+# Local configuration file
+local.properties
+
+# Miscellaneous
+.DS_Store
+*.log
+*.swp
+*.swo
+*~
+
+# Output files
+out/
+
+# Keystore files
+*.jks
+*.keystore
+
+# Google Services
+google-services.json
+
+# Environment
+.env
+.env.local

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#07495a</color>
+    <color name="bg">#0a91a9</color>
+    <color name="card">#0c4a6e</color>
+    <color name="text">#ffffff</color>
+    <color name="text_dark">#000000</color>
+    <color name="border">#036aa17c</color>
+    <color name="success">#10b981</color>
+    <color name="error">#ef4444</color>
+    <color name="warning">#f59e0b</color>
+    <color name="cyan">#06b6d4</color>
+    <color name="cyan_light">#0891b2</color>
+</resources>

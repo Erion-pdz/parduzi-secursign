@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Parduzi SecureSign</string>
+    <string name="logo_text">PZ</string>
+    <string name="title">Quitus Numérique</string>
+    <string name="subtitle">Validation certifiée de fin de chantier</string>
+
+    <!-- Sections -->
+    <string name="section_dossier">🏢 Informations Dossier</string>
+    <string name="section_locataire">👤 Locataire &amp; Lieu</string>
+    <string name="section_details">📝 Détails</string>
+    <string name="section_signatures">✍️ Signatures</string>
+
+    <!-- Fields -->
+    <string name="label_bailleur">Bailleur / Client Principal</string>
+    <string name="label_internal_num">Numéro Interne (Obligatoire)</string>
+    <string name="label_bon">N° de Bon (Optionnel)</string>
+    <string name="label_client">Nom du Locataire / Client</string>
+    <string name="label_address">Cité</string>
+    <string name="label_batiment">Bâtiment</string>
+    <string name="label_logement">Logement</string>
+    <string name="label_etage">Étage</string>
+    <string name="label_observations">Observations</string>
+
+    <!-- Placeholders -->
+    <string name="placeholder_internal_num">Ex: INT-2025-001</string>
+    <string name="placeholder_bon">Laisser vide si absent</string>
+    <string name="placeholder_client">NOM Prénom</string>
+    <string name="placeholder_address">Ex: Cité Rabelais</string>
+    <string name="placeholder_batiment">Ex: A</string>
+    <string name="placeholder_logement">Ex: 12</string>
+    <string name="placeholder_etage">Ex: 2</string>
+    <string name="placeholder_observations">RAS ou réserves...</string>
+
+    <!-- Signatures -->
+    <string name="label_client_sig">Locataire / Client</string>
+    <string name="label_tech_sig">Technicien</string>
+    <string name="btn_sign">✍️ Cliquer pour signer</string>
+    <string name="btn_signed">✅ Signé</string>
+    <string name="sig_client">Signature Locataire / Client</string>
+    <string name="sig_tech">Signature Technicien</string>
+
+    <!-- Buttons -->
+    <string name="btn_submit">📨 Envoyer le Quitus</string>
+    <string name="btn_clear">🗑️ Effacer</string>
+    <string name="btn_validate">✔️ Valider</string>
+    <string name="btn_sending">⏳ Envoi en cours...</string>
+
+    <!-- Messages -->
+    <string name="error_signatures">⚠️ Signatures manquantes !</string>
+    <string name="error_empty_sign">⚠️ Veuillez signer avant de valider !</string>
+    <string name="error_required_fields">Veuillez remplir les champs obligatoires</string>
+    <string name="success_sent">✅ Envoyé !\nEmail parti à contact@parduzi.fr</string>
+    <string name="error_sending">❌ Erreur : </string>
+    <string name="error_location">❌ Impossible d\'obtenir la localisation</string>
+</resources>
