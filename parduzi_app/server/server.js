@@ -1,8 +1,18 @@
 /**
- * PARDUZI SECURE SIGN - SERVEUR FINAL
- * Version : Avec Logo (A1:C5) + Gros Numéro Interne
+ * PARDUZI SECURE SIGN - SERVEUR BACKEND
+ * 
+ * API REST Node.js/Express qui gère :
+ * - L'authentification complète (register, login, email verification, forgot/reset password)
+ * - La génération de quitus Excel avec logo et signatures
+ * - L'envoi d'emails automatisés (verification, reset, quitus)
+ * - Le stockage sécurisé en base PostgreSQL
+ * 
+ * Sécurité :
+ * - Mots de passe hashés avec bcrypt (12 rounds = très sécurisé)
+ * - Tokens JWT pour l'authentification
+ * - Tokens de vérification/reset hashés en SHA256
+ * - Requêtes SQL paramétrisées (protection injection SQL)
  */
-
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -16,11 +26,12 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const validator = require('validator');
 
-require('dotenv').config();
+require('dotenv').config(); // Charge les variables d'environnement depuis .env
 
 const app = express();
 const PORT = 3000;
 
+// Vérifie qu'une variable d'environnement existe, sinon crève avec une erreur claire
 const requireEnv = (name) => {
     if (!process.env[name]) {
         throw new Error(`Missing environment variable: ${name}`);
@@ -28,29 +39,33 @@ const requireEnv = (name) => {
     return process.env[name];
 };
 
+// Configuration centralisée - toutes mes variables sensibles sont dans .env
 const CONFIG = {
     appBaseUrl: process.env.APP_BASE_URL || `http://localhost:${PORT}`,
-    appDeepLinkBase: process.env.APP_DEEPLINK_BASE || 'secursign://reset',
-    jwtSecret: requireEnv('JWT_SECRET'),
-    emailUser: requireEnv('EMAIL_USER'),
-    emailPass: requireEnv('EMAIL_PASS'),
-    dbUser: requireEnv('DB_USER'),
-    dbPassword: requireEnv('DB_PASSWORD'),
+    appDeepLinkBase: process.env.APP_DEEPLINK_BASE || 'secursign://reset', // Deep link Android
+    jwtSecret: requireEnv('JWT_SECRET'),       // Clé secrète pour signer les JWT
+    emailUser: requireEnv('EMAIL_USER'),       // Compte Gmail pour envoyer les emails
+    emailPass: requireEnv('EMAIL_PASS'),       // Mot de passe d'application Gmail
+    dbUser: requireEnv('DB_USER'),             // Utilisateur PostgreSQL
+    dbPassword: requireEnv('DB_PASSWORD'),     // Mot de passe PostgreSQL
     dbHost: process.env.DB_HOST || 'localhost',
     dbName: process.env.DB_NAME || 'postgres',
     dbPort: Number(process.env.DB_PORT || 5432)
 };
 
-// --- EMAIL ---
+// --- CONFIGURATION EMAIL ---
+// J'utilise nodemailer avec Gmail pour envoyer les emails automatiquement
+// (vérification de compte, reset password, envoi de quitus)
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: CONFIG.emailUser,
-        pass: CONFIG.emailPass
+        pass: CONFIG.emailPass // Mot de passe d'application Gmail (pas le vrai mdp)
     }
 });
 
-// --- BDD ---
+// --- CONNEXION BASE DE DONNÉES POSTGRESQL ---
+// Pool de connexions pour gérer plusieurs requêtes simultanées efficacement
 const pool = new Pool({
     user: CONFIG.dbUser,
     host: CONFIG.dbHost,
@@ -59,6 +74,18 @@ const pool = new Pool({
     port: CONFIG.dbPort,
 });
 
+/**
+ * Crée automatiquement la table users si elle n'existe pas
+ * Structure de la table :
+ * - id : Identifiant unique auto-incrémenté
+ * - email : Email unique (login)
+ * - password_hash : Mot de passe hashé avec bcrypt (JAMAIS en clair !)
+ * - first_name, last_name : Nom/prénom de l'utilisateur
+ * - is_verified : Boolean, true si l'email a été vérifié
+ * - verification_token : Token pour valider l'email (hashé SHA256)
+ * - reset_token : Token pour réinitialiser le mot de passe (hashé SHA256)
+ * - Timestamps : verification_expires, reset_expires, created_at
+ */
 const ensureUsersTable = async () => {
     const createTableQuery = `
         CREATE TABLE IF NOT EXISTS users (
@@ -82,21 +109,37 @@ const ensureUsersTable = async () => {
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_expires TIMESTAMP');
 };
 
-// Password policy: 8+ with upper, lower, number, special
+// Politique de mot de passe fort : 8+ caractères avec majuscule, minuscule, chiffre, spécial
+// J'utilise une regex pour valider que le mot de passe est assez sécurisé
 const isStrongPassword = (password) => {
     const policy = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
     return policy.test(password);
 };
 
+// Hash un token avec SHA256 avant de le stocker en base
+// Comme ça même si quelqu'un vole la BDD, il ne peut pas utiliser les tokens directement
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
 app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, '../public')));
 
-// --- AUTH ---
+// --- ROUTES D'AUTHENTIFICATION ---
+
+/**
+ * POST /api/auth/register - Inscription d'un nouvel utilisateur
+ * 
+ * Étapes :
+ * 1. Validation des données (email valide, password fort)
+ * 2. Vérification que l'email n'existe pas déjà
+ * 3. Hashage du mot de passe avec bcrypt (12 rounds)
+ * 4. Génération d'un token de vérification
+ * 5. Insertion en base de données
+ * 6. Envoi d'un email de vérification
+ */
 app.post('/api/auth/register', async (req, res) => {
     try {
+        // Je normalise les données (trim, lowercase pour l'email)
         const email = String(req.body.email || '').trim().toLowerCase();
         const password = String(req.body.password || '');
         const firstName = String(req.body.firstName || '').trim();
@@ -110,6 +153,7 @@ app.post('/api/auth/register', async (req, res) => {
             return res.status(400).json({ success: false, error: 'Email invalide' });
         }
 
+        // Validation de la force du mot de passe (sécurité importante !)
         if (!isStrongPassword(password)) {
             return res.status(400).json({
                 success: false,
@@ -117,23 +161,30 @@ app.post('/api/auth/register', async (req, res) => {
             });
         }
 
+        // Vérification que l'email n'est pas déjà utilisé
         const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
         if (existing.rowCount > 0) {
             return res.status(409).json({ success: false, error: 'Email deja utilise' });
         }
 
+        // HASHAGE DU MOT DE PASSE - 12 rounds = très sécurisé (prend ~150ms)
+        // Le mot de passe n'est JAMAIS stocké en clair dans la base !
         const passwordHash = await bcrypt.hash(password, 12);
+        
+        // Génération d'un token aléatoire pour la vérification d'email
         const verificationToken = crypto.randomBytes(32).toString('hex');
-        const verificationTokenHash = hashToken(verificationToken);
-        const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        const verificationTokenHash = hashToken(verificationToken); // Je stocke le hash, pas le token brut
+        const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // Expire dans 24h
 
+        // Insertion du nouvel utilisateur dans PostgreSQL
+        // Utilisation de requêtes paramétrisées ($1, $2...) pour éviter les injections SQL
         await pool.query(
             `INSERT INTO users (email, password_hash, first_name, last_name, verification_token, verification_expires)
              VALUES ($1, $2, $3, $4, $5, $6)`,
             [email, passwordHash, firstName, lastName, verificationTokenHash, verificationExpires]
         );
 
-        // Email de verification
+        // Envoi de l'email de vérification avec le lien cliquable
         const verifyLink = `${CONFIG.appBaseUrl}/api/auth/verify?token=${verificationToken}`;
         await transporter.sendMail({
             from: `"Parduzi App" <${CONFIG.emailUser}>`,
@@ -295,24 +346,31 @@ app.post('/api/auth/login', async (req, res) => {
             [email]
         );
 
+        // Je ne dis pas si c'est l'email ou le mot de passe qui est faux (sécurité)
         if (result.rowCount === 0) {
             return res.status(401).json({ success: false, error: 'Identifiants invalides' });
         }
 
         const user = result.rows[0];
+        
+        // Je bloque l'accès si l'email n'a pas été vérifié
         if (!user.is_verified) {
             return res.status(403).json({ success: false, error: 'Compte non verifie' });
         }
 
+        // COMPARAISON SÉCURISÉE du mot de passe
+        // bcrypt.compare() hash le password fourni et compare avec le hash en base
         const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) {
             return res.status(401).json({ success: false, error: 'Identifiants invalides' });
         }
 
+        // Génération du token JWT signé avec ma clé secrète
+        // Ce token sera envoyé dans les headers des requêtes suivantes pour prouver l'identité
         const token = jwt.sign(
             { userId: user.id, email: user.email },
             CONFIG.jwtSecret,
-            { expiresIn: '12h' }
+            { expiresIn: '12h' } // Le token expire après 12h, il faudra se reconnecter
         );
 
         return res.json({
@@ -331,29 +389,37 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-const OUTPUT_DIR = path.join(__dirname, 'output');
-const TEMPLATE_DIR = path.join(__dirname, 'templates'); // L'image doit être ici !
+const OUTPUT_DIR = path.join(__dirname, 'output');     // Dossier où je sauvegarde les Excel générés
+const TEMPLATE_DIR = path.join(__dirname, 'templates'); // Dossier contenant le template Excel et le logo
 if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR);
 
-// --- MAPPING EXCEL (HMP 2026) ---
+/**
+ * Configuration du mapping Excel
+ * 
+ * Pour chaque type de bailleur, je définis :
+ * - file : Nom du template Excel à utiliser
+ * - mapping : Dictionnaire indiquant dans quelle cellule mettre chaque donnée
+ * 
+ * Exemple : 'interne': 'H2' signifie que le numéro interne va dans la cellule H2
+ */
 const TEMPLATE_CONFIG = {
     'parduzi': {
         file: 'Quitus VIDE HMP 2026.xlsx', 
         mapping: {
-            interne: 'H2',      
-            nom_bailleur: 'B7', 
-            bon: 'B8',          
-            cite: 'B9',         
-            client: 'B10',      
-            date: 'H7',         
-            batiment: 'H8',     
-            logement: 'H9',     
-            etage: 'H10',       
-            remarques_debut: 'A14', 
-            remarques_fin: 'H18',   
-            sigClient: 'A21:C25', 
-            sigTech: 'F21:H25',
-            hash: 'B41' 
+            interne: 'H2',          // Numéro interne en GROS (cellule H2)
+            nom_bailleur: 'B7',     // Nom du bailleur
+            bon: 'B8',              // Numéro de bon de commande
+            cite: 'B9',             // Adresse/Cité
+            client: 'B10',          // Nom du client/locataire
+            date: 'H7',             // Date du jour
+            batiment: 'H8',         // Bâtiment
+            logement: 'H9',         // Numéro de logement
+            etage: 'H10',           // Étage
+            remarques_debut: 'A14', // Début de la zone de remarques (fusion de cellules)
+            remarques_fin: 'H18',   // Fin de la zone de remarques
+            sigClient: 'A21:C25',   // Zone pour la signature client (A21 à C25)
+            sigTech: 'F21:H25',     // Zone pour la signature technicien (F21 à H25)
+            hash: 'B41'             // Cellule pour le hash de sécurité
         }
     }
 };
@@ -367,38 +433,42 @@ app.post('/api/generate', async (req, res) => {
         console.log(`📥 Reçu : ${data.selectedBailleur} | Interne: ${data.internalNum}`);
 
         const now = new Date();
-        const dateJour = now.toLocaleDateString('fr-FR'); 
+        const dateJour = now.toLocaleDateString('fr-FR'); // Format date français (JJ/MM/AAAA)
 
         const config = TEMPLATE_CONFIG['parduzi'];
         const templatePath = path.join(TEMPLATE_DIR, config.file);
         
-        // Chemin vers le logo
+        // Chemin vers le logo Parduzi (doit être dans le dossier templates/)
         const logoPath = path.join(TEMPLATE_DIR, 'logo.png');
         
         if (!fs.existsSync(templatePath)) throw new Error(`Template introuvable: ${config.file}`);
 
+        // GÉNÉRATION DU HASH DE SÉCURITÉ
+        // Ce hash unique prouve l'authenticité du document
+        // Il est basé sur : numéro interne + date + nom client
         const rawString = `${data.internalNum}-${dateJour}-${data.clientName}`;
         const securityHash = crypto.createHash('sha256').update(rawString).digest('hex');
 
-        // --- EXCEL ---
+        // --- MANIPULATION DU FICHIER EXCEL AVEC EXCELJS ---
         const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.readFile(templatePath);
-        const ws = workbook.worksheets[0];
-        const map = config.mapping;
+        await workbook.xlsx.readFile(templatePath); // Je charge le template vierge
+        const ws = workbook.worksheets[0];          // Première feuille du classeur
+        const map = config.mapping;                 // Récupère le mapping des cellules
 
-        // --- 1. AJOUT DU LOGO (A1 à C5) ---
+        // --- 1. INSERTION DU LOGO PARDUZI ---
+        // Le logo est placé de A1 à C5 (coin supérieur gauche)
         if (fs.existsSync(logoPath)) {
             const logoBuffer = fs.readFileSync(logoPath);
             const logoId = workbook.addImage({
                 buffer: logoBuffer,
                 extension: 'png',
             });
-            // On place l'image de A1 à C5
-            ws.addImage(logoId, 'A1:C5');
+            ws.addImage(logoId, 'A1:C5'); // Place l'image dans cette zone
         } else {
             console.warn("⚠️ Attention : logo.png introuvable dans le dossier templates");
         }
 
+        // Fonction utilitaire pour écrire dans une cellule
         const writeCell = (coord, value) => {
             if (!coord) return;
             const cell = ws.getCell(coord);
@@ -406,16 +476,16 @@ app.post('/api/generate', async (req, res) => {
             cell.alignment = { horizontal: 'left', vertical: 'middle' }; 
         };
 
-        // --- 2. NUMÉRO INTERNE (GROS) ---
+        // --- 2. NUMÉRO INTERNE EN GROS (CELLULE H2) ---
+        // Le numéro interne est affiché en très gros (taille 20) pour visibilité maximale
         if (map.interne) {
             const cell = ws.getCell(map.interne);
             cell.value = data.internalNum.toUpperCase();
-            // Taille passée à 20 (Très grand)
-            cell.font = { bold: true, size: 20, name: 'Arial' };
+            cell.font = { bold: true, size: 20, name: 'Arial' }; // TAILLE 20 = TRÈS GROS
             cell.alignment = { horizontal: 'center', vertical: 'middle' };
         }
         
-        // Champs simples
+        // --- 3. REMPLISSAGE DES CHAMPS SIMPLES ---
         writeCell(map.nom_bailleur, data.selectedBailleur);
         writeCell(map.cite, data.address.toUpperCase());
         writeCell(map.date, dateJour);
@@ -425,25 +495,29 @@ app.post('/api/generate', async (req, res) => {
         writeCell(map.etage, data.etage);
         writeCell(map.bon, data.numeroBon);
 
-        // Détails
+        // --- 4. ZONE DE REMARQUES (FUSION DE CELLULES A14:H18) ---
+        // Je fusionne plusieurs cellules pour avoir une grande zone de texte
         if (map.remarques_debut && map.remarques_fin) {
             try { ws.mergeCells(`${map.remarques_debut}:${map.remarques_fin}`); } catch (e) {}
             const cell = ws.getCell(map.remarques_debut);
             cell.value = data.observations; 
-            cell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
+            cell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true }; // Retour à la ligne auto
         }
 
-        // Preuve Hash
+        // --- 5. HASH DE SÉCURITÉ ---
+        // J'affiche les 15 premiers caractères du hash pour l'identifier rapidement
         if (map.hash) ws.getCell(map.hash).value = `ID: ${securityHash.substring(0, 15)}...`;
 
-        // Signatures
+        // --- 6. INSERTION DES SIGNATURES (BASE64 → PNG) ---
+        // Les signatures viennent de l'app Android en format Base64
+        // Je les convertis en images et les insère dans les zones définies
         const addSig = (base64, range) => {
             if (!base64 || !range) return;
             const imgId = workbook.addImage({ base64: base64, extension: 'png' });
             ws.addImage(imgId, range);
         };
-        addSig(data.signatureClient, map.sigClient);
-        addSig(data.signatureTech, map.sigTech);
+        addSig(data.signatureClient, map.sigClient); // Signature du client en A21:C25
+        addSig(data.signatureTech, map.sigTech);     // Signature du technicien en F21:H25
 
         const filename = `Quitus_${data.selectedBailleur}_${data.internalNum}_${Date.now()}.xlsx`;
         const filePath = path.join(OUTPUT_DIR, filename);

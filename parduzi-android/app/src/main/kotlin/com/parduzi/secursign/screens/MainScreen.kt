@@ -56,6 +56,11 @@ import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.File
 
+/**
+ * Liste des bailleurs sociaux supportés par l'application
+ * Chaque bailleur a un ID (utilisé en interne) et un nom d'affichage
+ * Ces noms apparaissent dans le menu déroulant du formulaire
+ */
 val BAILEURS = listOf(
     "HMP" to "HMP (Habitat Marseille Provence)",
     "ERILIA" to "ERILIA",
@@ -66,36 +71,52 @@ val BAILEURS = listOf(
     "PARDUZI STANDARD" to "Parduzi (Autre)"
 )
 
+/**
+ * MainScreen - Écran principal de l'application
+ * 
+ * C'est ici que je gère :
+ * - Le formulaire de quitus avec tous les champs (bailleur, numéro, client, adresse...)
+ * - Les 2 signatures (client et technicien) avec des modals de dessin
+ * - La capture GPS automatique pour prouver la présence sur site
+ * - L'envoi au backend pour générer le Excel + envoi par email
+ * - Le bouton de déconnexion
+ */
 @Composable
 fun MainScreen(
     context: Context,
-    onLogout: () -> Unit,
+    onLogout: () -> Unit, //Callback appelé quand l'utilisateur clique sur "Se déconnecter"
     modifier: Modifier = Modifier
 ) {
     val coroutineScope = rememberCoroutineScope()
     
+    // --- Variables d'état du formulaire ---
+    // Je stocke toutes les données saisies par l'utilisateur
     var selectedBailleur by remember { mutableStateOf("HMP") }
-    var internalNum by remember { mutableStateOf("") }
-    var numeroBon by remember { mutableStateOf("") }
-    var clientName by remember { mutableStateOf("") }
-    var address by remember { mutableStateOf("") }
+    var internalNum by remember { mutableStateOf("") }      // Obligatoire
+    var numeroBon by remember { mutableStateOf("") }        // Optionnel
+    var clientName by remember { mutableStateOf("") }       // Obligatoire
+    var address by remember { mutableStateOf("") }          // Obligatoire
     var batiment by remember { mutableStateOf("") }
     var logement by remember { mutableStateOf("") }
     var etage by remember { mutableStateOf("") }
-    var observations by remember { mutableStateOf("") }
+    var observations by remember { mutableStateOf("") }     // Zone de texte libre pour remarques
     
+    // --- Gestion des signatures ---
+    // Chaque signature est stockée en Base64 (image PNG compressée)
     var isClientSigned by remember { mutableStateOf(false) }
     var isTechSigned by remember { mutableStateOf(false) }
-    var clientSignatureData by remember { mutableStateOf("") }
-    var techSignatureData by remember { mutableStateOf("") }
+    var clientSignatureData by remember { mutableStateOf("") } // Base64 de la signature client
+    var techSignatureData by remember { mutableStateOf("") }   // Base64 de la signature technicien
     
+    // --- Contrôle des modals de signature ---
     var showClientSignatureModal by remember { mutableStateOf(false) }
     var showTechSignatureModal by remember { mutableStateOf(false) }
     
-    var isLoading by remember { mutableStateOf(false) }
-    var statusMessage by remember { mutableStateOf("") }
-    var isSuccess by remember { mutableStateOf(false) }
-    var showStatus by remember { mutableStateOf(false) }
+    // --- État de l'envoi ---
+    var isLoading by remember { mutableStateOf(false) }     // True pendant l'appel API
+    var statusMessage by remember { mutableStateOf("") }    // Message de succès/erreur
+    var isSuccess by remember { mutableStateOf(false) }     // Couleur du message (vert/rouge)
+    var showStatus by remember { mutableStateOf(false) }    // Afficher ou masquer le message
     
     val scrollState = rememberScrollState()
 
@@ -106,6 +127,7 @@ fun MainScreen(
     ) {
         Header()
 
+        // Bouton de déconnexion en haut à droite
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = androidx.compose.foundation.layout.Arrangement.End
@@ -294,13 +316,15 @@ fun MainScreen(
             PrimaryButton(
                 text = "📨 Envoyer le Quitus",
                 onClick = {
-                    // Validation
+                    // --- VALIDATION DES DONNÉES ---
+                    // Vérification que toutes les signatures sont bien présentes
                     if (!isClientSigned || !isTechSigned) {
                         statusMessage = "⚠️ Signatures manquantes!"
                         isSuccess = false
                         showStatus = true
                         return@PrimaryButton
                     }
+                    // Vérification des champs obligatoires
                     if (internalNum.isEmpty() || clientName.isEmpty() || address.isEmpty()) {
                         statusMessage = "⚠️ Remplissez les champs obligatoires"
                         isSuccess = false
@@ -311,12 +335,15 @@ fun MainScreen(
                     isLoading = true
                     showStatus = false
 
+                    // --- LANCEMENT DE LA GÉNÉRATION ---
                     coroutineScope.launch {
                         try {
-                            // Get GPS coordinates
+                            // Étape 1 : Je récupère les coordonnées GPS actuelles
+                            // Cela prouve que j'étais bien sur place au moment du quitus
                             val gpsCoords = getGpsCoordinates(context)
 
-                            // Create payload
+                            // Étape 2 : Je crée l'objet de données avec tout le formulaire
+                            // Les signatures sont en Base64, prêtes à être insérées dans Excel
                             val payload = QuitusData(
                                 selectedBailleur = selectedBailleur,
                                 internalNum = internalNum,
@@ -332,14 +359,16 @@ fun MainScreen(
                                 gps = gpsCoords
                             )
 
-                            // Send to API
+                            // Étape 3 : J'envoie tout au backend Node.js
+                            // Le serveur va générer le Excel et l'envoyer par email
                             val response = RetrofitClient.apiService.generateQuitus(payload)
 
                             if (response.success) {
                                 statusMessage = "✅ Quitus envoyé avec succès!\nFichier: ${response.filename}"
                                 isSuccess = true
                                 
-                                // Reset form
+                                // Réinitialisation du formulaire après succès
+                                // L'utilisateur peut créer un nouveau quitus directement
                                 internalNum = ""
                                 numeroBon = ""
                                 clientName = ""
@@ -373,15 +402,28 @@ fun MainScreen(
     }
 }
 
+/**
+ * Récupère les coordonnées GPS actuelles de l'appareil
+ * 
+ * Cette fonction est cruciale pour la traçabilité :
+ * - Elle prouve que j'étais physiquement sur le lieu du chantier
+ * - Les coordonnées sont envoyées au backend et stockées en base de données
+ * - En cas d'erreur (GPS désactivé, pas de permission...), je retourne 0,0
+ * 
+ * @SuppressLint("MissingPermission") car je demande les permissions au runtime séparément
+ */
 @SuppressLint("MissingPermission")
 suspend fun getGpsCoordinates(context: Context): GpsCoordinates {
     return try {
+        // FusedLocationProvider = API Google Play Services pour la localisation
+        // Plus précis et moins gourmand en batterie que le GPS direct
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
         withContext(Dispatchers.Default) {
             try {
+                // Je récupère la dernière localisation connue (rapide)
+                // Pas besoin d'attendre une nouvelle mise à jour GPS
                 val task = fusedLocationClient.lastLocation
-                // Try to get location, but don't block if not available
-                var gps = GpsCoordinates(0.0, 0.0)
+                var gps = GpsCoordinates(0.0, 0.0) // Valeur par défaut si pas de GPS
                 task.addOnSuccessListener { location ->
                     if (location != null) {
                         gps = GpsCoordinates(
